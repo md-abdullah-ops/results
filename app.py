@@ -37,16 +37,23 @@ def check_results():
         print(f"Fetch error: {e}")
         return False
 
-    for row in soup.find_all("tr")[:20]:
+    for row in soup.find_all("tr")[:25]:
         text = row.get_text(separator=" ", strip=True)
         lower_text = text.lower()
         
-        has_bsc = "b.sc" in lower_text and "health care" not in lower_text
-        has_rv = "rv" in lower_text or "revaluation" in lower_text
-        has_sem = bool(re.search(r'\b(vi|sem-iv & vi|sem-vi)\b', lower_text))
-        has_session = "2026" in lower_text or "may" in lower_text
+        # 1. Matches B.Sc / BSC (ignores B.ASLP or B.Sc Health Care)
+        has_bsc = bool(re.search(r'\bb\.?\s*sc\b', lower_text)) and "health care" not in lower_text
         
-        if has_bsc and has_rv and has_sem and has_session:
+        # 2. Strict RV check (handles '(rv)', '[rv]', standalone 'rv', or 'revaluation')
+        has_rv = bool(re.search(r'(\brv\b|\(rv\)|\[rv\]|revaluation)', lower_text))
+        
+        # 3. Matches Semester VI in all OU formats (e.g., 'Sem-VI', 'Semesters-IV & VI', 'VI Sem', 'Sem-IV & VI')
+        has_sem_vi = bool(re.search(r'\b(vi|sem[- ]?vi|semesters?[- ]*(?:iv\s*&\s*)?vi)\b', lower_text))
+        
+        # 4. Session match (2026, May, April/May)
+        has_session = bool(re.search(r'\b(2026|may|april/may)\b', lower_text))
+        
+        if has_bsc and has_rv and has_sem_vi and has_session:
             link = row.find("a")
             href = link.get("href") if link else ""
             full_link = f"https://www.osmania.ac.in{href}" if href.startswith("/") else href
